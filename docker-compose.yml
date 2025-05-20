@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik_hopital
+    command:
+      - "--api.dashboard=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=tonemail@example.com"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "8080:80"      # HTTP site web
+      - "8443:443"     # HTTPS Traefik
+      - "9000:8080"    # Dashboard Traefik
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/letsencrypt"
+    networks:
+      - hopital_net
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_hopital
+    depends_on:
+      - php
+    volumes:
+      - ./site:/var/www/html
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hopital.rule=Host(`hopital.local`)"
+      - "traefik.http.routers.hopital.entrypoints=websecure"
+      - "traefik.http.routers.hopital.tls.certresolver=myresolver"
+      - "traefik.http.services.hopital.loadbalancer.server.port=80"
+    networks:
+      - hopital_net
+
+  php:
+    build: ./php
+    container_name: php_hopital
+    depends_on:
+      - mariadb_hopital
+    volumes:
+      - ./site:/var/www/html
+    networks:
+      - hopital_net
+
+  mariadb_hopital:
+    image: mariadb:latest
+    container_name: mariadb_hopital
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: hospitaldb
+      MYSQL_USER: hopital
+      MYSQL_PASSWORD: hopital123
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - hopital_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  hopital_net:
+
+volumes:
+  mariadb_data:
