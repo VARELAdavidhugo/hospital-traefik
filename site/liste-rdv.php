@@ -1,8 +1,19 @@
 <?php
 require_once 'db.php';
 
-$stmt = $pdo->query("SELECT * FROM rdv ORDER BY date_rdv DESC");
-$rdvs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$query = $pdo->query("
+  SELECT rdv.id, rdv.date_rdv, rdv.motif, rdv.statut,
+         patients.nom AS patient_nom, patients.prenom AS patient_prenom,
+         medecins.nom AS medecin_nom, medecins.prenom AS medecin_prenom,
+         specialites.nom AS specialite
+  FROM rdv
+  JOIN patients ON rdv.patient_id = patients.id
+  JOIN medecins ON rdv.medecin_id = medecins.id
+  LEFT JOIN specialites ON medecins.specialite_id = specialites.id
+  ORDER BY rdv.date_rdv DESC
+");
+
+$rdvs = $query->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -22,9 +33,14 @@ $rdvs = $stmt->fetchAll(PDO::FETCH_ASSOC);
   <thead class="table-light">
     <tr>
       <th>ID</th>
-      <th>Nom</th>
-      <th>Prénom</th>
+      <th>Patient Nom</th>
+      <th>Patient Prénom</th>
+      <th>Médecin Nom</th>
+      <th>Médecin Prénom</th>
+      <th>Spécialité</th>
       <th>Date du rendez-vous</th>
+      <th>Motif</th>
+      <th>Statut</th>
       <th>Action</th>
     </tr>
   </thead>
@@ -32,9 +48,14 @@ $rdvs = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php foreach ($rdvs as $rdv): ?>
     <tr>
       <td><?= $rdv['id'] ?></td>
-      <td><?= htmlspecialchars($rdv['nom']) ?></td>
-      <td><?= htmlspecialchars($rdv['prenom']) ?></td>
+      <td><?= htmlspecialchars($rdv['patient_nom'] ?? '') ?></td>
+      <td><?= htmlspecialchars($rdv['patient_prenom'] ?? '') ?></td>
+      <td><?= htmlspecialchars($rdv['medecin_nom'] ?? '') ?></td>
+      <td><?= htmlspecialchars($rdv['medecin_prenom'] ?? '') ?></td>
+      <td><?= htmlspecialchars($rdv['specialite'] ?? '') ?></td>
       <td><?= $rdv['date_rdv'] ?></td>
+      <td><?= htmlspecialchars($rdv['motif'] ?? '') ?></td>
+      <td><?= htmlspecialchars($rdv['statut'] ?? '') ?></td>
       <td>
         <a href="supprimer-rdv.php?id=<?= $rdv['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Supprimer ce rendez-vous ?');">Supprimer</a>
       </td>
